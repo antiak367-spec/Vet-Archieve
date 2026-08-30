@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Question Paper Archive — Faculty of Veterinary, Animal and Biomedical Sciences</title>
+  <meta name="description" content="Archive of class test (CT) and semester final question papers of the Faculty of Veterinary, Animal and Biomedical Sciences." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23047857'/%3E%3Cpath d='M21.5 10L12 5 2.5 10 12 15l9.5-5z' fill='none' stroke='white' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M6.5 12v4.5c0 1.6 2.5 2.8 5.5 2.8s5.5-1.2 5.5-2.8V12' fill='none' stroke='white' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#/" aria-label="Question Paper Archive — home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 10 12 5 2 10l10 5 10-5z"/>
+            <path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/>
+          </svg>
+        </span>
+        <span class="brand-text">
+          <span class="brand-title">Question Paper Archive</span>
+          <span class="brand-sub">Faculty of Veterinary, Animal and Biomedical Sciences</span>
+        </span>
+      </a>
+      <div class="search-box">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>
+        </svg>
+        <input id="searchInput" type="search" placeholder="Search by subject or paper name…" autocomplete="off" aria-label="Search question papers" />
+      </div>
+    </div>
+  </header>
+
+  <main id="app" class="container">
+    <!-- Everything inside here is rendered by app.js from data.json -->
+    <div class="loading">Loading question papers…</div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>Question Paper Archive · Faculty of Veterinary, Animal and Biomedical Sciences</p>
+      <p class="footer-note">Files are hosted on Google Drive. Maintained by <strong>Md. Maruf Islam</strong>.</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
