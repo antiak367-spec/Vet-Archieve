@@ -1,0 +1,5 @@
+{
+  "googleSheetId": "PASTE_YOUR_GOOGLE_SHEET_ID_HERE",
+  "googleSheetGid": 0,
+  "uploadScriptUrl": "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE"
+}

@@ -18,35 +18,138 @@ const TYPE_LABEL = {
 };
 
 let papers = [];
+let CONFIG = {};
 
 const appEl = document.getElementById('app');
 const searchEl = document.getElementById('searchInput');
 
 init();
 
-/* -------------------- Boot: load data.json -------------------- */
+/* -------------------- Boot -------------------- */
 
 async function init() {
+  // config.json is optional — it tells us about the Google Sheet and uploader.
   try {
-    const res = await fetch('data.json', { cache: 'no-store' });
-    if (!res.ok) throw new Error('Could not load data.json (HTTP ' + res.status + ').');
-    const raw = await res.json();
-    if (!Array.isArray(raw)) {
-      throw new Error('data.json must contain a JSON array of paper entries.');
-    }
-    papers = raw.filter(validEntry);
-    const skipped = raw.length - papers.length;
-    if (skipped > 0) {
-      console.warn(skipped + ' entry/entries in data.json were skipped because they are incomplete or invalid.');
-    }
+    const cfgRes = await fetch('config.json', { cache: 'no-store' });
+    if (cfgRes.ok) CONFIG = await cfgRes.json() || {};
+  } catch (err) { /* config.json may simply not exist */ }
+
+  try {
+    papers = await loadPapers();
   } catch (err) {
     appEl.innerHTML = viewError(err && err.message ? err.message : String(err));
+    setupUpload();
     return;
   }
 
   window.addEventListener('hashchange', route);
   searchEl.addEventListener('input', onSearchInput);
   route();
+  setupUpload();
+}
+
+/* -------------------- Data loading --------------------
+   Preferred source: a Google Sheet (see config.json) — easy
+   to edit from your phone, no commits needed.
+   Fallback source: data.json (works offline / if no sheet set). */
+
+async function loadPapers() {
+  // 1) Try the Google Sheet configured in config.json
+  try {
+    const sheetId = String(CONFIG.googleSheetId || '').trim();
+    if (sheetId && !/PASTE_/i.test(sheetId)) {
+      const rows = await fetchSheetPapers(sheetId, CONFIG.googleSheetGid || 0);
+      const valid = rows.filter(validEntry);
+      console.log('Loaded ' + valid.length + ' paper(s) from Google Sheet.');
+      return valid;
+    }
+  } catch (err) {
+    console.warn('Google Sheet could not be loaded (' + (err && err.message) + '). Falling back to data.json.');
+  }
+
+  // 2) Fallback: data.json
+  const res = await fetch('data.json', { cache: 'no-store' });
+  if (!res.ok) throw new Error('Could not load data.json (HTTP ' + res.status + ').');
+  const raw = await res.json();
+  if (!Array.isArray(raw)) {
+    throw new Error('data.json must contain a JSON array of paper entries.');
+  }
+  const valid = raw.filter(validEntry);
+  const skipped = raw.length - valid.length;
+  if (skipped > 0) {
+    console.warn(skipped + ' entry/entries were skipped because they are incomplete or invalid.');
+  }
+  return valid;
+}
+
+async function fetchSheetPapers(sheetId, gid) {
+  const url = 'https://docs.google.com/spreadsheets/d/' + encodeURIComponent(sheetId) +
+    '/gviz/tq?tqx=out:json&gid=' + encodeURIComponent(gid) + '&_=' + Date.now();
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('sheet HTTP ' + res.status);
+  const text = await res.text();
+
+  // The response is wrapped: google.visualization.Query.setResponse({ ... });
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start < 0 || end < 0) throw new Error('unexpected response from Google Sheets');
+  const data = JSON.parse(text.slice(start, end + 1));
+  const rows = (data.table && data.table.rows) || [];
+  if (rows.length === 0) return [];
+
+  const cellVal = (c) => (c == null ? '' : (c.v != null ? c.v : (c.f != null ? c.f : '')));
+
+  // Row 1 of the sheet is the header row — map columns by their names.
+  const headers = rows[0].c.map((c) => String(cellVal(c)).toLowerCase().trim());
+  const findCol = (aliases) => headers.findIndex((h) =>
+    aliases.some((a) => h === a || h.indexOf(a) !== -1));
+  const idx = {
+    level:    findCol(['level']),
+    semester: findCol(['semester', 'sem ']),
+    type:     findCol(['type']),
+    subject:  findCol(['subject', 'course']),
+    title:    findCol(['title', 'paper name', 'paper']),
+    link:     findCol(['drivelink', 'drive link', 'link', 'url']),
+    date:     findCol(['uploaddate', 'upload date', 'timestamp', 'date'])
+  };
+
+  const out = [];
+  for (let i = 1; i < rows.length; i++) {
+    const cells = (rows[i].c) || [];
+    const get = (k) => {
+      const j = idx[k];
+      if (j < 0) return '';
+      let v = cellVal(cells[j]);
+      // Date cells come back as e.g. "Date(2026,7,30)" — convert to YYYY-MM-DD
+      if (typeof v === 'string' && /^Date\(\d/.test(v)) {
+        const n = v.match(/\d+/g).map(Number);
+        v = new Date(n[0], n[1], n[2] || 1).toISOString().slice(0, 10);
+      }
+      return String(v).trim();
+    };
+
+    let type = get('type').toUpperCase();
+    type = type.indexOf('CT') !== -1 ? 'CT' : (type.indexOf('FINAL') !== -1 ? 'FINAL' : type);
+    const subject = get('subject');
+    const title = get('title') || (type === 'CT' ? 'CT Question Paper' : 'Semester Final Question Paper');
+    let link = get('link');
+    // People sometimes paste the "share" popup link or extra spaces — tidy it.
+    link = link.replace(/^https?:\/\/drive\.google\.com\/open\?id=/,
+      (m) => 'https://drive.google.com/file/d/') ;
+
+    if (!link && !subject) continue; // completely empty row
+
+    out.push({
+      level: get('level'),
+      semester: get('semester'),
+      type: type,
+      subject: subject,
+      title: title,
+      driveLink: link,
+      uploadDate: get('date')
+    });
+  }
+  return out;
 }
 
 function validEntry(p) {
@@ -300,8 +403,170 @@ function viewError(msg) {
       '<span class="emoji">⚠️</span>' +
       '<p><strong>Could not load the paper list.</strong></p>' +
       '<p>' + esc(msg) + '</p>' +
+      '<p>If you use a Google Sheet: make sure the sheet link sharing is set to <strong>&ldquo;Anyone with the link&rdquo;</strong> ' +
+      'and the ID in <code>config.json</code> is correct.</p>' +
       '<p>If you opened this page by double-clicking <code>index.html</code> (address starts with <code>file://</code>), ' +
-      'browsers block reading <code>data.json</code>. Preview locally with <code>python3 -m http.server</code> ' +
+      'browsers block reading the data files. Preview locally with <code>python3 -m http.server</code> ' +
       '(see README.md), or just deploy to GitHub Pages — it works there automatically.</p>' +
     '</div>';
+}
+
+/* ============================================================
+   Admin Upload — sends a file to the Google Apps Script
+   (see apps-script/Code.gs). The button only appears when
+   config.json contains a real "uploadScriptUrl".
+   ============================================================ */
+
+function setupUpload() {
+  const btn = document.getElementById('uploadBtn');
+  const modal = document.getElementById('uploadModal');
+  if (!btn || !modal) return;
+
+  const url = String(CONFIG.uploadScriptUrl || '').trim();
+  if (!url || !/^https:\/\/script\.google\.com\//.test(url)) return; // uploader not configured
+  btn.hidden = false;
+
+  const form = document.getElementById('uploadForm');
+  const statusEl = document.getElementById('upStatus');
+  const submitBtn = document.getElementById('upSubmit');
+  const fileInput = document.getElementById('upFile');
+  const keyInput = document.getElementById('upKey');
+  const typeSel = document.getElementById('upType');
+  const titleInput = document.getElementById('upTitle');
+  const subjectInput = document.getElementById('upSubject');
+  const subjectList = document.getElementById('subjectList');
+
+  // Autocomplete subjects already present in the archive.
+  const subjects = [...new Set(papers.map((p) => p.subject).filter(Boolean))].sort();
+  subjectList.innerHTML = subjects.map((s) => '<option value="' + esc(s) + '">').join('');
+
+  function openModal() {
+    statusEl.hidden = true;
+    statusEl.className = 'up-status';
+    statusEl.textContent = '';
+    form.reset();
+    keyInput.value = localStorage.getItem('vetAdminKey') || '';
+    modal.hidden = false;
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => fileInput.focus(), 50);
+  }
+
+  function closeModal() {
+    modal.hidden = true;
+    document.body.style.overflow = '';
+  }
+
+  btn.addEventListener('click', openModal);
+  modal.querySelectorAll('[data-close]').forEach((el) => el.addEventListener('click', closeModal));
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && !modal.hidden) closeModal();
+  });
+
+  // Default the title based on paper type if the user hasn't typed one.
+  typeSel.addEventListener('change', () => {
+    if (titleInput.value.trim() === '') {
+      titleInput.placeholder = typeSel.value === 'FINAL'
+        ? 'Semester Final Question Paper'
+        : 'e.g. CT-1 Question Paper (2026)';
+    }
+  });
+
+  form.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const file = fileInput.files && fileInput.files[0];
+    const level = document.getElementById('upLevel').value;
+    const semester = document.getElementById('upSemester').value;
+    const type = typeSel.value;
+    const subject = subjectInput.value.trim();
+    const title = titleInput.value.trim();
+    const key = keyInput.value;
+
+    if (!file) return showStatus('error', 'Please choose a file to upload.');
+    if (file.size > 25 * 1024 * 1024) {
+      return showStatus('error', 'That file is ' + (file.size / 1048576).toFixed(1) +
+        ' MB — the limit is 25 MB. For a very large paper, please upload it to Google Drive manually and add it to the sheet.');
+    }
+    if (!level || !semester || !type) return showStatus('error', 'Please pick level, semester and paper type.');
+    if (!subject) return showStatus('error', 'Please enter the subject name.');
+    if (!key) return showStatus('error', 'Please enter the admin key.');
+
+    localStorage.setItem('vetAdminKey', key);
+    submitBtn.disabled = true;
+    showStatus('info', 'Uploading “' + esc(file.name) + '”… this may take a moment for large files.');
+
+    readFileAsBase64(file)
+      .then((contentBase64) => fetch(url, {
+        // text/plain avoids a CORS preflight; Google Apps Script accepts the body.
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          key: key,
+          level: Number(level),
+          semester: Number(semester),
+          type: type,
+          subject: subject,
+          title: title || (type === 'FINAL' ? 'Semester Final Question Paper' : 'CT Question Paper'),
+          fileName: file.name,
+          mimeType: file.type || 'application/pdf',
+          contentBase64: contentBase64
+        })
+      }))
+      .then((res) => res.text())
+      .then((txt) => {
+        let data;
+        try { data = JSON.parse(txt); }
+        catch (err) { throw new Error('Unexpected response from the upload service. Check that the Apps Script is deployed as a Web app with access "Anyone".'); }
+        if (!data.ok) throw new Error(data.error || 'Upload failed.');
+        return data;
+      })
+      .then((data) => {
+        showStatus('ok',
+          '✅ Uploaded successfully! The paper was saved to your Google Drive and added to the sheet. ' +
+          '<br><a href="' + esc(data.link) + '" target="_blank" rel="noopener noreferrer">Open the file in Drive</a> · ' +
+          '<a href="#" id="refreshLink">Refresh the list now</a>');
+        form.reset();
+        keyInput.value = localStorage.getItem('vetAdminKey') || '';
+        const rl = document.getElementById('refreshLink');
+        if (rl) rl.addEventListener('click', (e) => { e.preventDefault(); refreshAfterUpload(); });
+      })
+      .catch((err) => {
+        let msg = String(err && err.message ? err.message : err);
+        if (/Failed to fetch|NetworkError|load failed/i.test(msg)) {
+          msg = 'Could not reach the upload service. Make sure you deployed the Apps Script as a Web app (access: Anyone) and pasted the correct /exec URL into config.json.';
+        }
+        showStatus('error', '❌ ' + esc(msg));
+      })
+      .finally(() => { submitBtn.disabled = false; });
+  });
+
+  function showStatus(kind, html) {
+    statusEl.hidden = false;
+    statusEl.className = 'up-status ' + kind;
+    statusEl.innerHTML = html;
+  }
+}
+
+function refreshAfterUpload() {
+  loadPapers()
+    .then((fresh) => {
+      papers = fresh;
+      route(); // re-render the current page with the new paper
+    })
+    .catch(() => {
+      // Sheet cache can lag a few seconds; a normal browser refresh will show it.
+      location.reload();
+    });
+}
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const res = reader.result || '';
+      const comma = res.indexOf(',');
+      resolve(comma >= 0 ? res.slice(comma + 1) : res);
+    };
+    reader.onerror = () => reject(reader.error || new Error('Could not read the file.'));
+    reader.readAsDataURL(file);
+  });
 }

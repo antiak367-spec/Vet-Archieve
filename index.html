@@ -30,11 +30,19 @@
         </svg>
         <input id="searchInput" type="search" placeholder="Search by subject or paper name…" autocomplete="off" aria-label="Search question papers" />
       </div>
+      <!-- The Upload button only appears if config.json has an uploadScriptUrl -->
+      <button id="uploadBtn" type="button" class="btn-upload" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        Upload
+      </button>
     </div>
   </header>
 
   <main id="app" class="container">
-    <!-- Everything inside here is rendered by app.js from data.json -->
+    <!-- Everything inside here is rendered by app.js from the Google Sheet / data.json -->
     <div class="loading">Loading question papers…</div>
   </main>
 
@@ -44,6 +52,80 @@
       <p class="footer-note">Files are hosted on Google Drive. Maintained by <strong>Md. Maruf Islam</strong>.</p>
     </div>
   </footer>
+
+  <!-- ============ Admin Upload Modal (driven by apps-script/Code.gs) ============ -->
+  <div id="uploadModal" class="modal" hidden>
+    <div class="modal-overlay" data-close></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="uploadTitle">
+      <div class="modal-head">
+        <h2 id="uploadTitle">Upload a question paper</h2>
+        <button type="button" class="modal-x" data-close aria-label="Close">&times;</button>
+      </div>
+
+      <p class="modal-note">
+        The file goes straight into the admin's Google Drive (shared by link automatically)
+        and is added to the list instantly. Visitors to the site never see this dialog.
+      </p>
+
+      <form id="uploadForm" class="upload-form">
+
+        <p class="steps-note">Where should this paper go? Follow the site's structure — <strong>Level → Semester → Section</strong>:</p>
+
+        <div class="field-row">
+          <label class="field">
+            <span>1 · Level</span>
+            <select id="upLevel" required>
+              <option value="">Select level…</option>
+              <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>2 · Semester</span>
+            <select id="upSemester" required>
+              <option value="">Select semester…</option>
+              <option>1</option><option>2</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="field">
+          <span>3 · Section</span>
+          <select id="upType" required>
+            <option value="">Select section…</option>
+            <option value="CT">CT Questions</option>
+            <option value="FINAL">Semester Final Questions</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Subject</span>
+          <input type="text" id="upSubject" list="subjectList" placeholder="e.g. Pharmacology" required />
+          <datalist id="subjectList"></datalist>
+        </label>
+
+        <label class="field">
+          <span>Paper title <span class="hint">(optional — e.g. CT-1 Question Paper 2025)</span></span>
+          <input type="text" id="upTitle" placeholder="Leave blank to auto-name" />
+        </label>
+
+        <label class="field">
+          <span>Question paper file (PDF recommended, max 25 MB)</span>
+          <input type="file" id="upFile" accept="application/pdf,image/jpeg,image/png" required />
+        </label>
+
+        <label class="field">
+          <span>Admin key <span class="hint">(the passphrase you set in the script)</span></span>
+          <input type="password" id="upKey" placeholder="Admin key" required />
+        </label>
+
+        <div id="upStatus" class="up-status" role="status" hidden></div>
+
+        <button type="submit" id="upSubmit" class="btn btn-drive btn-block">
+          Upload to Google Drive
+        </button>
+      </form>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

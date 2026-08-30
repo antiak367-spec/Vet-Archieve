@@ -1,115 +1,148 @@
-# Question Paper Archive
+# Vet-Archive — Question Paper Archive
 
-A simple static website that archives **class test (CT)** and **semester final** question papers for the
+A free static website that archives **class test (CT)** and **semester final** question papers for the
 **Faculty of Veterinary, Animal and Biomedical Sciences**.
 
-- Files (PDFs) are **not stored on the site** — they live in **Google Drive**. The site only stores links.
-- All content lives in a single file: **`data.json`**. To add or remove a paper, you only edit that one file.
-- No backend, no database, no login. 100% free to host on **GitHub Pages** or **Vercel**.
+- PDFs live in **Google Drive** — nothing is stored on the website.
+- **Two ways to add papers** (both free, no commits-per-paper):
+  1. ⭐ **Upload button on the website** — pick the PDF, choose level/semester/type, click Upload. The file
+     flies straight into your Google Drive (shared automatically) and adds itself to the list.
+  2. **Google Sheet** — just add a spreadsheet row.
+- No backend, no database, no login for students. Hosted free on **GitHub Pages**.
 
 Maintained by **Md. Maruf Islam**.
 
 ---
 
-## Project files
+## ⭐ PART 1 — One-time setup of the "Upload" button (Google Apps Script)
 
-| File           | What it is                                                        | Do you edit it? |
-|----------------|-------------------------------------------------------------------|-----------------|
-| `data.json`    | The list of all question papers (the only file with content)     | **Yes — always**|
-| `index.html`   | The page shell                                                    | No              |
-| `styles.css`   | All styling/colors                                                | No (unless you want to change the look) |
-| `app.js`       | Reads `data.json` and builds the navigation/lists/search          | No              |
-| `.nojekyll`    | Tiny helper file for GitHub Pages                                 | No              |
+This makes a green **Upload** button appear in the site's header. Only your configured passphrase
+lets a file through, so random visitors can't add files.
 
----
+### Step A — Create your Google Sheet first
 
-## How to add a new question paper
+1. Go to <https://sheets.new>.
+2. In row 1, put these 7 headers in A1 → G1 (or use **File → Import** with `papers-template.csv`):
 
-1. **Upload the PDF to Google Drive** (any folder in your Drive).
-2. Right-click the file → **Share** → under "General access" choose **"Anyone with the link"** → role **Viewer** → **Copy link**.
-   - The link looks like: `https://drive.google.com/file/d/1AbCdEf.../view?usp=sharing`
-3. Open **`data.json`** in the GitHub website (click the pencil ✏️ "Edit this file" button).
-4. Add a new entry inside the square brackets, following this exact shape:
+   `level` · `semester` · `type` · `subject` · `title` · `driveLink` · `uploadDate`
+
+3. Click **Share** (top right) → *General access:* **"Anyone with the link"** → role **Viewer** → **Copy link** → Done.
+4. From the link, note the **Sheet ID** — the long code between `/d/` and `/edit`.
+
+### Step B — Install the upload script
+
+1. In the sheet, open the menu **Extensions → Apps Script**.
+2. Delete everything in the editor.
+3. Open the file **`apps-script/Code.gs`** (from this project) and **paste all of it** into the editor.
+4. At the top of the pasted code, change this line to your own secret passphrase:
+   ```js
+   var SECRET_KEY = 'CHANGE-ME-to-a-long-secret-passphrase';
+   ```
+   Use something only you know, e.g. `vetArchive-2026-xxxxx`. This is your **admin key**.
+5. Click the **💾 Save** icon.
+6. Click **Deploy → New deployment**:
+   - Click the gear ⚙️ icon → choose **Web app**
+   - **Execute as:** `Me (your email)`
+   - **Who has access:** `Anyone`
+   - Click **Deploy**
+7. Click **Authorize access** → choose your Google account → you'll see "Google hasn't verified this app":
+   - Click **Advanced** → **Go to (your project name) (unsafe)** — this is *your own script*, it's safe →
+     allow the permissions.
+8. Copy the **Web app URL** shown at the end — it looks like:
+   ```
+   https://script.google.com/macros/s/AKfycb.....long...../exec
+   ```
+
+> ⚠️ If you ever edit `Code.gs` later, redeploy: **Deploy → Manage deployments → ✏️ Edit →
+> Version: "New version" → Deploy**. Otherwise changes won't take effect.
+
+### Step C — Connect the site
+
+On GitHub, open **`config.json`** (pencil ✏️) and fill in both values, then **Commit changes**:
 
 ```json
 {
-  "level": 1,
-  "semester": 1,
-  "type": "CT",
-  "subject": "Anatomy",
-  "title": "CT-1 Question Paper",
-  "driveLink": "https://drive.google.com/file/d/PASTE-THE-LINK-HERE/view?usp=sharing",
-  "uploadDate": "2026-08-30"
+  "googleSheetId": "1AbCdEfGh-your-sheet-id-here",
+  "googleSheetGid": 0,
+  "uploadScriptUrl": "https://script.google.com/macros/s/AKfycb...../exec"
 }
 ```
 
-Field rules:
+Make sure all the updated site files (`app.js`, `index.html`, `styles.css`, `config.json`, `apps-script/Code.gs`
+is not needed on GitHub but keep it safe) are pushed to the repo. Within a minute, refresh your site —
+the green **Upload** button appears in the header.
 
-- `"level"`: `1`, `2`, `3`, `4`, or `5`
-- `"semester"`: `1` or `2`
-- `"type"`: `"CT"` for class tests, `"FINAL"` for semester final questions
-- `"subject"`: subject name, e.g. `"Pharmacology"`
-- `"title"`: paper name, e.g. `"CT-2 Question Paper"` or `"Semester Final Question Paper"`
-- `"driveLink"`: the full Google Drive share link (must start with `https://`)
-- `"uploadDate"`: today's date as `YYYY-MM-DD`
+### Adding a paper afterwards (≈20 seconds)
 
-5. **Commas matter:** every entry `{ ... }` must end with a comma `,` *except* the last one before the closing `]`.
-6. Scroll down → **Commit changes**. The site updates automatically in about 1 minute.
+1. Click **Upload** on the website.
+2. Choose the PDF file, pick **Level / Semester / CT-or-Final**, type the **subject** (existing subjects
+   autocomplete) and the paper **title** (optional — auto-named if left blank).
+3. Enter your **admin key** (it's remembered on your device) → **Upload to Google Drive**.
+4. Click **"Refresh the list now"** — the paper is already live. ✅
 
-> To **remove** a paper: delete its whole `{ ... }` block (and the trailing comma) and commit.
-> To **fix a broken link**: replace the `driveLink` value and commit.
-
----
-
-## Deploy for free — option A: GitHub Pages (recommended)
-
-1. Create a free account at [github.com](https://github.com) and create a new **repository**, e.g. `question-archive` (public).
-2. Upload all the files in this folder to the repository
-   (either drag-and-drop on the **"Add file → Upload files"** page, or use `git push`).
-3. In the repository, go to **Settings → Pages**.
-4. Under **"Build and deployment"**:
-   - Source: **Deploy from a branch**
-   - Branch: **`main`**, folder: **`/ (root)`** → click **Save**.
-5. Wait ~1 minute. Your site goes live at:
-
-   **`https://<your-username>.github.io/question-archive/`**
-
-   (No custom domain needed — this address is free forever.)
-
-Future updates: just edit `data.json` on GitHub and commit. Nothing else to do.
-
-## Deploy for free — option B: Vercel
-
-1. Push these files to a GitHub repository (steps 1–2 above).
-2. Go to [vercel.com](https://vercel.com) → sign in with GitHub → **Add New → Project** → import the repository.
-3. Leave all build settings at their defaults (there is no build step) → **Deploy**.
-4. Your site goes live at `https://<project-name>.vercel.app`.
+Files land in a Drive folder named **"Vet-Archive Question Papers"**, auto-shared as *anyone with link =
+viewer*, and a row is appended to your sheet automatically. File size limit: **25 MB** per paper.
 
 ---
 
-## Previewing locally on your computer
+## PART 2 — Adding papers via the Google Sheet (alternative)
 
-Because the site reads `data.json`, opening `index.html` by double-clicking it won't work
-(browsers block that for security reasons). Instead, run a tiny local server:
+You can also just open the sheet and type a row:
+
+| Column | Example | Notes |
+|---|---|---|
+| `level` | `1` | 1–5 |
+| `semester` | `2` | 1 or 2 |
+| `type` | `CT` | `CT` or `FINAL` ("Final" also works) |
+| `subject` | `Pharmacology` | |
+| `title` | `CT-1 Question Paper (2025)` | blank = auto-named |
+| `driveLink` | `https://drive.google.com/file/d/.../view?usp=sharing` | the Drive share link |
+| `uploadDate` | `2026-08-30` | can be left blank |
+
+The site re-reads the sheet on every visit. Delete a row to remove a paper.
+
+---
+
+## Project files
+
+| File | What it is | Do you edit it? |
+|---|---|---|
+| `apps-script/Code.gs` | The upload receiver — paste into Extensions → Apps Script | Once, at setup (set SECRET_KEY) |
+| `config.json` | Sheet ID + Apps Script URL | Once, at setup |
+| Your Google Sheet | Auto-managed list of papers | You can also edit directly |
+| `data.json` | Offline fallback list | Normally no |
+| `papers-template.csv` | Template to start the sheet | Optional import |
+| `index.html`, `styles.css`, `app.js` | The website | No |
+| `.nojekyll` | GitHub Pages helper | No |
+
+---
+
+## Deploy on GitHub Pages
+
+1. Upload all files to a **public** GitHub repo (**Add file → Upload files**).
+2. **Settings → Pages** → Source: **Deploy from a branch** → Branch: **`main` / `/ (root)`** → Save.
+3. Live at `https://<your-username>.github.io/<repo-name>/` after ~1 minute.
+
+Papers added via the Upload button or the sheet need **no redeploy** — refresh the site and they appear.
+
+## Previewing locally
+
+The site fetches data files, so double-clicking `index.html` (`file://` address) won't work. Run:
 
 ```bash
-# from inside this folder:
 python3 -m http.server 8000
 ```
 
-Then open <http://localhost:8000> in your browser. (Or use the VS Code "Live Server" extension.)
+then open <http://localhost:8000>.
 
----
-
-## How the site is organized
+## Site structure
 
 ```
-Home (5 level cards)
-  └─ Level 1 … Level 5
-       └─ Semester 1 / Semester 2
-            ├─ Tab: CT Questions        → list of papers → "Open in Drive" (new tab)
-            └─ Tab: Semester Final      → list of papers → "Open in Drive" (new tab)
+Home (level cards + search + recently added + Upload button)
+  └─ Level 1 … 5
+       └─ Semester 1 / 2
+            ├─ Tab: CT Questions      → papers → "Open in Drive" (new tab)
+            └─ Tab: Semester Final    → papers → "Open in Drive" (new tab)
 ```
 
-A search box in the top bar filters across every level/semester by subject name or paper title.
-Empty categories show a friendly "no papers yet" message automatically — you don't need to do anything special.
+Search filters by subject or paper title across all levels. Empty categories show a friendly message.
