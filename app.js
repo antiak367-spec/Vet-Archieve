@@ -137,13 +137,13 @@ async function fetchSheetPapers(sheetId, gid) {
     link = link.replace(/^https?:\/\/drive\.google\.com\/open\?id=/,
       (m) => 'https://drive.google.com/file/d/') ;
 
-    if (!link && !subject) continue; // completely empty row
+    if (!link) continue; // no link = not a real paper row
 
     out.push({
       level: get('level'),
       semester: get('semester'),
       type: type,
-      subject: subject,
+      subject: subject || '', // subject is optional
       title: title,
       driveLink: link,
       uploadDate: get('date')
@@ -157,9 +157,9 @@ function validEntry(p) {
     && LEVELS.includes(Number(p.level))
     && SEMESTERS.includes(Number(p.semester))
     && ['CT', 'FINAL'].includes(String(p.type || '').toUpperCase())
-    && typeof p.subject === 'string' && p.subject.trim() !== ''
     && typeof p.title === 'string' && p.title.trim() !== ''
     && typeof p.driveLink === 'string' && /^https?:\/\//i.test(p.driveLink);
+  // Note: subject is optional — papers are organized by Level → Semester → CT/Final.
 }
 
 /* -------------------- Data helpers -------------------- */
@@ -260,7 +260,9 @@ function paperRow(p, context) {
   return '' +
     '<article class="paper-row">' +
       '<div class="paper-info">' +
-        '<span class="badge">' + esc(p.subject) + '</span>' +
+        (p.subject && p.subject.trim()
+          ? '<span class="badge">' + esc(p.subject) + '</span>'
+          : '') +
         '<h3>' + esc(p.title) + '</h3>' +
         '<p class="paper-meta">' +
           (context ? esc(context) + ' &middot; ' : '') +
@@ -486,8 +488,7 @@ function setupUpload() {
       return showStatus('error', 'That file is ' + (file.size / 1048576).toFixed(1) +
         ' MB — the limit is 25 MB. For a very large paper, please upload it to Google Drive manually and add it to the sheet.');
     }
-    if (!level || !semester || !type) return showStatus('error', 'Please pick level, semester and paper type.');
-    if (!subject) return showStatus('error', 'Please enter the subject name.');
+    if (!level || !semester || !type) return showStatus('error', 'Please pick level, semester and section.');
     if (!key) return showStatus('error', 'Please enter the admin key.');
 
     localStorage.setItem('vetAdminKey', key);

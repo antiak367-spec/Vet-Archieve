@@ -75,27 +75,29 @@ the green **Upload** button appears in the header.
 ### Adding a paper afterwards (≈20 seconds)
 
 1. Click **Upload** on the website.
-2. Choose the PDF file, pick **Level / Semester / CT-or-Final**, type the **subject** (existing subjects
-   autocomplete) and the paper **title** (optional — auto-named if left blank).
-3. Enter your **admin key** (it's remembered on your device) → **Upload to Google Drive**.
-4. Click **"Refresh the list now"** — the paper is already live. ✅
+2. Pick **Level → Semester → Section (CT Questions / Semester Final Questions)** — that's the only
+   categorization. Subject and title are optional: leave them blank and the paper is automatically named
+   e.g. `L3S1 - CT Question Paper.pdf` (level-semester-type, like "3-1 CT").
+3. Choose the PDF, enter your **admin key** (remembered on your device) → **Upload to Google Drive**.
+4. Click **"Refresh the list now"** — the paper is already live in the right section. ✅
 
-Files land in a Drive folder named **"Vet-Archive Question Papers"**, auto-shared as *anyone with link =
-viewer*, and a row is appended to your sheet automatically. File size limit: **25 MB** per paper.
+Files land in a Drive folder named **"Vet-Archive Question Papers"**, named like
+`L3S1 - CT Question Paper.pdf`, auto-shared as *anyone with link = viewer*, and a row is appended to
+your sheet automatically. File size limit: **25 MB** per paper.
 
 ---
 
 ## PART 2 — Adding papers via the Google Sheet (alternative)
 
-You can also just open the sheet and type a row:
+You can also just open the sheet and type a row. Papers are grouped **only by Level → Semester → CT/Final** — subject is optional.
 
 | Column | Example | Notes |
 |---|---|---|
 | `level` | `1` | 1–5 |
 | `semester` | `2` | 1 or 2 |
 | `type` | `CT` | `CT` or `FINAL` ("Final" also works) |
-| `subject` | `Pharmacology` | |
-| `title` | `CT-1 Question Paper (2025)` | blank = auto-named |
+| `subject` | `Pharmacology` | **optional — leave blank if you don't need a subject tag** |
+| `title` | `CT Question Paper` | blank = auto-named ("CT Question Paper" / "Semester Final Question Paper") |
 | `driveLink` | `https://drive.google.com/file/d/.../view?usp=sharing` | the Drive share link |
 | `uploadDate` | `2026-08-30` | can be left blank |
 
